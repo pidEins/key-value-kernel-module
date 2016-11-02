@@ -211,8 +211,6 @@ static long keyvalue_delete(struct keyvalue_delete __user *ukv)
     return transaction_id;
 }
 
-//Added by Hung-Wei
-     
 unsigned int keyvalue_poll(struct file *filp, struct poll_table_struct *wait)
 {
     unsigned int mask = 0;
@@ -254,6 +252,9 @@ static struct miscdevice keyvalue_dev = {
 static int __init keyvalue_init(void)
 {
     int ret;
+
+    // Initialise the lock 
+    rwlock_init(&keyvalue_lock); 
     
     if ((ret = misc_register(&keyvalue_dev)))
         printk(KERN_ERR "Unable to register \"keyvalue\" misc device\n");
