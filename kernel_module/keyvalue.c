@@ -23,23 +23,17 @@
 ////////////////////////////////////////////////////////////////////////
 //
 //   Author:  Hung-Wei Tseng
+//   
+//   Project Members:
+//   1. Jalandhar Singh (jsingh8)  
+//   2. Rohit Nambisan (rnambis)
 //
 //   Description:
 //     Skeleton of KeyValue Pseudo Device
 //
 ////////////////////////////////////////////////////////////////////////
 
-/* The Group members are,
-
-Rohit Nambisan, rnambis
-Jalandhar Singh, jsingh8
-
-References:
-The Linux Kernel Module Programming Guide
-*/
-
 #include "keyvalue.h"
-
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -52,12 +46,20 @@ The Linux Kernel Module Programming Guide
 #include <linux/poll.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+
+// Link node to keep key value pair and pointer to next node. 
 struct keyvalue_node{
 	struct keyvalue_get *kv_get; 
 	struct keyvalue_node *next;
 };
+
+// Spin lock 
 rwlock_t keyvalue_lock;
+
+// Head node of the list
 static struct keyvalue_node *head=NULL;
+
+// Transaction id to keep track of operations
 unsigned transaction_id;
 
 static __attribute__((unused)) void free_callback(void *data)
@@ -65,6 +67,7 @@ static __attribute__((unused)) void free_callback(void *data)
 	return;
 }
 
+/* Function: to release or free the list */
 static void release_list(void)
 {
 	struct keyvalue_node *temp = head;
@@ -76,6 +79,7 @@ static void release_list(void)
 	}
 }
 
+/* Function: to get the key value pair */
 static long keyvalue_get(struct keyvalue_get __user *ukv)
 {   
     read_lock(&keyvalue_lock);
@@ -103,16 +107,21 @@ static long keyvalue_get(struct keyvalue_get __user *ukv)
     if( !found ){
     	return -1;
     }
-   
+  
+    transaction_id++; 
+ 
     read_unlock(&keyvalue_lock);
     
-    return transaction_id++;
+    return transaction_id;
 }
 
+/* Function: to set the key value pair */
 static long keyvalue_set(struct keyvalue_set __user *ukv)
 {
-    bool found = false;
     write_lock(&keyvalue_lock);
+    
+    bool found = false;
+    
     struct keyvalue_node *temp = head;
     
     while(temp != NULL){
@@ -149,15 +158,22 @@ static long keyvalue_set(struct keyvalue_set __user *ukv)
 	head = new_node;    
      }
   
+     transaction_id++;
+     
      write_unlock(&keyvalue_lock);
-     return transaction_id++;
+     
+     return transaction_id;
 }
 
+/* Function: to delete the key value pair from the list */
 static long keyvalue_delete(struct keyvalue_delete __user *ukv)
 {
-    bool found = false;
     write_lock(&keyvalue_lock);
+    
+    bool found = false;
+    
     struct keyvalue_node *temp;
+    
     struct keyvalue_node *prev = NULL;
 
     temp = head; 
@@ -188,10 +204,11 @@ static long keyvalue_delete(struct keyvalue_delete __user *ukv)
     if( !found )
     	return -1;
     
+    transaction_id++;
+    
     write_unlock(&keyvalue_lock);	
     
-    return transaction_id++;
-    
+    return transaction_id;
 }
 
 //Added by Hung-Wei
@@ -237,7 +254,7 @@ static struct miscdevice keyvalue_dev = {
 static int __init keyvalue_init(void)
 {
     int ret;
-    rwlock_init(&keyvalue_lock);
+    
     if ((ret = misc_register(&keyvalue_dev)))
         printk(KERN_ERR "Unable to register \"keyvalue\" misc device\n");
     
@@ -251,7 +268,7 @@ static void __exit keyvalue_exit(void)
     
 }
 
-MODULE_AUTHOR("Hung-Wei Tseng <htseng3@ncsu.edu>");
+MODULE_AUTHOR("Jalandhar Singh <jsingh8@ncsu.edu>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
 module_init(keyvalue_init);
